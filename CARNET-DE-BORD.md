@@ -106,6 +106,32 @@ licenciement d'un **CDI à temps plein**.
 - Mise en ligne (build statique).
 - Customisation finale du design (marque de l'utilisateur).
 
+## 6bis. Règles juridiques de référence (assiette & ancienneté)
+
+Sources croisées (service-public F987, Légifrance R.1234-4, Lefebvre-Dalloz,
+jurisprudence). Base de l'enrichissement pédagogique.
+
+**Salaire de référence (Sref)** — art. R.1234-4 : le plus favorable entre
+(a) moyenne des **12 derniers mois** et (b) **1/3 des 3 derniers mois**.
+- Primes annuelles/exceptionnelles versées sur les 3 mois : **proratisées**
+  (1/12 par mois, soit 3/12 sur le trimestre) — sinon surévaluation.
+- **Incluses** : 13e mois, prime d'ancienneté, vacances, commissions, primes
+  contractuelles régulières, avantages en nature.
+- **Exclues** : frais professionnels, primes exceptionnelles ponctuelles (liées
+  à un événement unique), stock-options, **participation/intéressement (exclus
+  par défaut — sources divergentes, choix produit)**.
+- Jurisprudence primes exceptionnelles : **Cass. soc. 15 janv. 2025 n°23-11.600**
+  → critère = **récurrence** (une prime régulière, même variable, est incluse).
+
+**Ancienneté** — deux calculs distincts :
+- **Éligibilité (8 mois, L.1234-9)** : ancienneté **NON réduite** par les absences
+  (continuité du contrat). → corrigé dans notre outil.
+- **Montant (R.1234-1)** : absences déductibles (maladie non-pro…) **réduisent**
+  le montant, **sauf CCN plus favorable** (**Cass. soc. 28 sept. 2022
+  n°20-18.218**). Maladie/accident **PRO** = toujours assimilés.
+- Barème Macron (L.1235-3, hors périmètre) : ancienneté intégrale
+  (**Cass. soc. 1er oct. 2025 n°24-15.529**).
+
 ## 7. Limites connues
 - Seules les **47 CC les plus courantes** sont prises en charge (même périmètre
   que le moteur officiel) ; sinon → calcul Code du travail.
@@ -143,3 +169,16 @@ licenciement d'un **CDI à temps plein**.
 - Validé UI : SYNTEC ingénieur → 15 166,67 € (CC retenue).
 - **Reproduction du simulateur officiel : COMPLÈTE** (légal + CC). Reste :
   optimisation bundle, mise en ligne, customisation design.
+
+### 2026-06-12 (suite 3) — Recherche juridique + sécurisation + correction éligibilité
+- Recherche croisée (assiette primes, ancienneté) → §6bis. Décisions validées
+  par l'utilisateur : participation/intéressement **exclus par défaut** ;
+  éligibilité **corrigée** (les absences ne bloquent plus le droit).
+- **Filet de sécurité** : dépôt **git** initialisé + suite de **tests de
+  non-régression** (`npm test`, 9 scénarios « valeurs en or »).
+- **Correction d'éligibilité** codée dans le wrapper (`correctSeniorityEligibility`)
+  + bulle verte + détail cohérent (ancienneté réellement retenue). Validé UI :
+  8 mois + 4 mois d'absence → éligible 500 € (l'officiel dirait inéligible).
+- **À venir (enrichissement, validé)** : bulles « ⓘ » pédagogiques sur les primes
+  (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
+  ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.

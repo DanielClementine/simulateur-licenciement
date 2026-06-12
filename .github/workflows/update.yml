@@ -1,0 +1,75 @@
+name: Mise à jour hebdo des règles officielles
+
+# Chaque lundi : récupère la dernière version du moteur officiel, lance les tests
+# de non-régression, et NE redéploie QUE si tout est vert. Si un test casse, le
+# job échoue (GitHub t'envoie une alerte) et rien n'est mis en ligne.
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # tous les lundis à 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Mettre à jour les règles officielles
+        run: npm update @socialgouv/modeles-social
+      - name: Tests de non-régression (BLOQUANT)
+        run: npm test
+      - name: Détecter un changement de version
+        id: diff
+        run: |
+          if git diff --quiet -- package.json package-lock.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Aucune nouvelle version — rien à faire."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Commit + push (tests verts, version changée)
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          git commit -m "chore: maj règles officielles @socialgouv/modeles-social (auto)"
+          git push
+      - name: Build
+        if: steps.diff.outputs.changed == 'true'
+        run: npm run build
+      - uses: actions/configure-pages@v5
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          enablement: true
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.diff.outputs.changed == 'true'
+        with:
+          path: dist
+
+  deploy:
+    needs: update
+    if: needs.update.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

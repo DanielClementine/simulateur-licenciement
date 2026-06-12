@@ -204,6 +204,16 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 5) — Préparation mise en ligne (GitHub Pages)
+- Choix hébergement validé : **GitHub Pages + GitHub Actions** (gratuit, robuste).
+- `vite.config.ts` : `base: './'` (chemins relatifs → marche quel que soit le
+  nom du dépôt). Build vérifié.
+- 2 workflows créés : `deploy.yml` (build+tests+déploiement à chaque push) et
+  `update.yml` (cron **lundi 06:00 UTC** : `npm update` modeles-social + tests +
+  redéploiement SI vert, sinon alerte). MAJ auto hebdo = branchée ici.
+- Guide : `MISE-EN-LIGNE.md`. Étape restante = action de l'utilisateur (créer le
+  dépôt GitHub + s'authentifier ; je ne peux pas le faire à sa place).
+
 ### 2026-06-12 (suite 4) — Enrichissement UI livré (Option A)
 - **Bulles ⓘ → panneau latéral** (drawer) : primes à inclure/exclure
   (participation/intéressement exclus), prorata des primes annuelles, choix

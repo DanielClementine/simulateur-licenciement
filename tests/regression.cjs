@@ -68,5 +68,19 @@ const syntec = calcRaw({
 check("SYNTEC ingénieur → convention retenue", syntec.detail?.chosenResult, "AGREEMENT");
 check("SYNTEC ingénieur → montant CC", syntec.result?.value, 15166.67);
 
+// --- Correction d'éligibilité (les absences ne bloquent pas le DROIT) ---
+// entrée 01/06/2024, notif 01/04/2025 (10 mois bruts), sortie 01/06/2025, 4 mois
+// d'arrêt maladie. Officiel : INÉLIGIBLE (requis réduit à 6 mois). Corrigé :
+// éligible (10 mois bruts ≥ 8), montant minoré au prorata (8 mois → 500 €).
+// NB : ce bloc reproduit le calcul de notre wrapper (src/calc/engine.ts) pour
+// figer la valeur en or ; le wrapper lui-même est vérifié en navigateur.
+const edge = { dateEntree: "01/06/2024", dateNotif: "01/04/2025", dateSortie: "01/06/2025", salaire: 3000, absences: [{ durationInMonth: 4, motif: { key: "absenceMaladieNonPro" } }] };
+check("Éligibilité — officiel déclare inéligible", calcRaw(edge).type, "ineligibility");
+const pubE = new mod.IndemniteLicenciementPublicodes(models);
+const grossMontant = calcRaw({ ...edge, absences: undefined }).result?.value;
+const senRed = pubE.estimatedSeniority("01/06/2024", "01/06/2025", edge.absences).value;
+const senGross = pubE.estimatedSeniority("01/06/2024", "01/06/2025", []).value;
+check("Éligibilité — montant corrigé au prorata", Math.round(grossMontant * (senRed / senGross) * 100) / 100, 500);
+
 console.log(`\n${fail === 0 ? "🎉 TOUT VERT" : "⚠️ RÉGRESSION"} — ${pass} ok, ${fail} ko`);
 process.exit(fail === 0 ? 0 : 1);

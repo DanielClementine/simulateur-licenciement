@@ -492,6 +492,15 @@ select.input {
   color: #c2410c;
   border: 1px solid #fed7aa;
 }
+.callout.ok {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #a7f3d0;
+}
+.callout.ok .ic {
+  color: #059669;
+  font-weight: 800;
+}
 
 /* ---------- Intro ---------- */
 .intro-lead {

@@ -10,6 +10,7 @@
  */
 import * as ModelesSocial from "@socialgouv/modeles-social";
 import { applyOverlay } from "./overlay";
+import { formatSeniority } from "./dates";
 
 // Le paquet est en CommonJS : on récupère les exports de façon robuste.
 const IndemniteLicenciementPublicodes = (ModelesSocial as any)
@@ -141,7 +142,17 @@ export interface SimulationResult {
   missing?: string[];
   ineligibility?: string;
   message?: string;
+  /**
+   * true si l'éligibilité a été corrigée : le moteur officiel déclarait
+   * inéligible car il déduit les absences de l'ancienneté requise, alors que
+   * le seuil de 8 mois s'apprécie sur l'ancienneté NON réduite (continuité du
+   * contrat). Cf. Cass. soc. 28 sept. 2022 n°20-18.218 (les absences ne jouent
+   * que sur le MONTANT). Le montant est minoré au prorata de l'ancienneté réelle.
+   */
+  eligibilityCorrected?: boolean;
 }
+
+const MIN_SENIORITY_YEARS = 8 / 12; // 8 mois
 
 let instance: any | null = null;
 let instanceIdcc: string | undefined;
@@ -197,6 +208,92 @@ function buildArgs(input: SimulationInput): Record<string, string> {
 }
 
 /**
+ * CORRECTION D'ÉLIGIBILITÉ (couche maison).
+ *
+ * Le moteur officiel déduit les absences de l'ancienneté REQUISE (seuil 8 mois),
+ * ce qui peut déclarer inéligible à tort un salarié pourtant présent ≥ 8 mois.
+ * Or le seuil s'apprécie sur la continuité du contrat : les absences ne réduisent
+ * que le MONTANT, pas le droit à l'indemnité (Cass. soc. 28 sept. 2022 n°20-18.218
+ * pour le montant ; continuité du lien contractuel pour l'éligibilité).
+ *
+ * Si l'ancienneté NON réduite atteint 8 mois, on rétablit l'éligibilité et on
+ * calcule le montant minoré au prorata de l'ancienneté réelle (formule légale
+ * linéaire en-dessous de 10 ans, donc exacte pour ces faibles anciennetés).
+ */
+function correctSeniorityEligibility(
+  input: SimulationInput,
+  out: any
+): SimulationResult {
+  const ineligibility: string | undefined = out.ineligibility;
+  const isSeniority =
+    typeof ineligibility === "string" && /8\s*mois/.test(ineligibility);
+  if (!isSeniority) {
+    return { status: "ineligible", ineligibility };
+  }
+
+  // Ancienneté requise SANS déduction des absences (continuité du contrat).
+  const grossRequired = estimateSeniorityYears(
+    input.dateEntree,
+    input.dateNotification
+  );
+  const eligible =
+    input.inaptitudePro ||
+    (grossRequired !== undefined && grossRequired >= MIN_SENIORITY_YEARS - 1e-9);
+  if (!eligible) {
+    return { status: "ineligible", ineligibility };
+  }
+
+  // Éligible : on recalcule via le moteur SANS absences (pour lever le blocage),
+  // puis on minore le montant au prorata de l'ancienneté réellement retenue.
+  const grossOut = getInstance(input.idcc).calculate(
+    buildArgs({ ...input, absencePeriods: undefined })
+  );
+  if (grossOut.type !== "result") {
+    // Cas non calculable proprement : on reste prudent (inéligible affiché).
+    return { status: "ineligible", ineligibility };
+  }
+
+  const reducedMontantSen =
+    estimateSeniorityYears(
+      input.dateEntree,
+      input.dateSortie,
+      input.absencePeriods
+    ) ?? 0;
+  const grossMontantSen =
+    estimateSeniorityYears(input.dateEntree, input.dateSortie) ??
+    reducedMontantSen;
+  const factor = grossMontantSen > 0 ? reducedMontantSen / grossMontantSen : 1;
+  const scale = (v: any) =>
+    typeof v === "number" ? Math.round(v * factor * 100) / 100 : undefined;
+
+  // Détail cohérent : afficher l'ancienneté RÉELLEMENT retenue (réduite), pas
+  // l'ancienneté brute du calcul de contournement.
+  const formule = grossOut.formula
+    ? {
+        ...grossOut.formula,
+        explanations: (grossOut.formula.explanations ?? []).map((e: string) =>
+          /ancienn/i.test(e)
+            ? `A : Ancienneté retenue (${formatSeniority(reducedMontantSen)})`
+            : e
+        ),
+      }
+    : undefined;
+
+  return {
+    status: "result",
+    montant: scale(grossOut.result.value),
+    unit: grossOut.result.unit?.numerators?.[0] ?? "€",
+    chosenResult: grossOut.detail?.chosenResult,
+    legalMontant: scale(grossOut.detail?.legalResult?.value),
+    agreementMontant: scale(grossOut.detail?.agreementResult?.value),
+    formule,
+    references: grossOut.references,
+    notifications: grossOut.notifications,
+    eligibilityCorrected: true,
+  };
+}
+
+/**
  * Calcule l'indemnité via le moteur officiel, puis applique l'overlay
  * (personnalisations maison) sur le résultat.
  */
@@ -225,7 +322,8 @@ export function simulate(input: SimulationInput): SimulationResult {
         missing: out.missingArgs.map((a: any) => a.name),
       };
     } else {
-      raw = { status: "ineligible", ineligibility: out.ineligibility };
+      // Inéligibilité renvoyée par le moteur → tenter la correction d'éligibilité.
+      raw = correctSeniorityEligibility(input, out);
     }
   } catch (e) {
     raw = { status: "error", message: (e as Error).message?.split("\n")[0] };

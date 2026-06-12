@@ -988,6 +988,19 @@ function StepResult({
         </p>
       </div>
 
+      {result.eligibilityCorrected && (
+        <div className="callout ok">
+          <span className="ic">✓</span>
+          <span>
+            <b>Éligibilité rétablie.</b> Vos absences réduisent le{" "}
+            <i>montant</i> de l'indemnité, mais pas votre <i>droit</i> à
+            l'indemnité : le seuil de 8 mois s'apprécie sur l'ancienneté non
+            réduite (continuité du contrat). Le simulateur officiel vous
+            déclarerait inéligible à tort.
+          </span>
+        </div>
+      )}
+
       <div className="callout info">
         <span className="ic">ℹ️</span>
         <span>

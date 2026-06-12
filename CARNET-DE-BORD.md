@@ -106,6 +106,27 @@ licenciement d'un **CDI à temps plein**.
 - Mise en ligne (build statique).
 - Customisation finale du design (marque de l'utilisateur).
 
+## ⭐ NOTRE COUCHE — inventaire de ce qu'on fait PAR-DESSUS l'officiel
+
+> Référence unique pour savoir ce que notre code ajoute/modifie vs le moteur
+> officiel. **Principe : on ne touche jamais au paquet ; le user pilote des
+> ENTRÉES du moteur ; nos précisions sont en SORTIE.** À tenir à jour.
+
+| Quoi | Type | Où | Réversible ? |
+|------|------|-----|-------------|
+| **Correction d'éligibilité** : les absences ne réduisent pas le droit (seuil 8 mois sur ancienneté non réduite). Active par défaut. | Écart assumé (post-traitement) | `engine.ts` → `correctSeniorityEligibility` | **Oui, 1 ligne** : remplacer l'appel par `{status:'ineligible', ...}` |
+| Détection robuste de ce cas (par le calcul, pas le libellé) | Robustesse MAJ | idem | — |
+| Détail cohérent en cas de correction (ancienneté réellement retenue) | Affichage | idem | — |
+| `convention collective` = `'IDCCxxxx'` (via enum SupportedCc) | Glue technique (usage correct du moteur) | `engine.ts` → `conventionValue` | — |
+| `salaire de référence conventionnel` renseigné pour salaire constant | Glue technique | `engine.ts` → `buildArgs` | — |
+| Liste des 47 CC + noms officiels (kali-data) | Donnée | `conventions.ts` | — |
+| **Bulles pédagogiques** (primes, prorata, 12/3 mois, ancienneté) | Affichage seulement (zéro calcul) | `App.tsx` → `INFO_TOPICS`, `InfoTip`, `InfoDrawer` | — |
+| **Mode Expert** ancienneté (2 ancienneté + explications) | Affichage ; pilote `absencePeriods` que le moteur consomme | `App.tsx` → `StepAbsences` (toggle `expertMode`) | Off par défaut |
+
+**Ce que NOTRE COUCHE ne fait JAMAIS** : copier/modifier une règle Publicodes,
+recalculer un montant à la place du moteur (hors prorata du cas-limite
+d'éligibilité, exact pour la formule légale linéaire).
+
 ## 6bis. Règles juridiques de référence (assiette & ancienneté)
 
 Sources croisées (service-public F987, Légifrance R.1234-4, Lefebvre-Dalloz,
@@ -182,3 +203,14 @@ jurisprudence). Base de l'enrichissement pédagogique.
 - **À venir (enrichissement, validé)** : bulles « ⓘ » pédagogiques sur les primes
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
+
+### 2026-06-12 (suite 4) — Enrichissement UI livré (Option A)
+- **Bulles ⓘ → panneau latéral** (drawer) : primes à inclure/exclure
+  (participation/intéressement exclus), prorata des primes annuelles, choix
+  12/3 mois, ancienneté éligibilité≠montant. 100 % affichage, zéro calcul.
+- **Mode Expert** (interrupteur OFF par défaut) sur l'étape Absences : affiche
+  les **deux ancienneté** (droit vs montant) + explications + jurisprudence.
+- Principe gravé (§ inventaire NOTRE COUCHE) : ajustements user → entrées moteur ;
+  pédagogie → affichage seul. Robuste aux mises à jour. Validé en navigateur.
+- Architecture confirmée avec l'utilisateur : ne jamais casser/forker le moteur ;
+  `npm test` comme garde-fou de mise à jour.

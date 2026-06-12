@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import "./App.css";
 import {
   simulate,
@@ -120,10 +126,175 @@ function useCountUp(target: number, run: boolean, duration = 900) {
 
 /* ---------- App ---------- */
 
+/* ===================== Bulles pédagogiques (affichage seulement) =====================
+ * Aucune incidence sur le calcul. Contenu fondé sur les sources officielles
+ * (service-public F987, art. R.1234-4) et la jurisprudence récente.
+ */
+const SP = "https://www.service-public.gouv.fr/particuliers/vosdroits/F987";
+const INFO_TOPICS: Record<string, { title: string; body: ReactNode }> = {
+  primes: {
+    title: "Quelles primes compter dans le salaire ?",
+    body: (
+      <>
+        <p>
+          Le salaire de référence retient les éléments de rémunération{" "}
+          <b>réguliers et obligatoires</b>, versés en contrepartie du travail.
+        </p>
+        <p className="tip-h ok">✅ À inclure</p>
+        <ul>
+          <li>Salaire de base, heures supplémentaires habituelles</li>
+          <li>13ᵉ mois, prime de vacances, prime d'ancienneté</li>
+          <li>Commissions, primes contractuelles (même variables)</li>
+          <li>Avantages en nature (voiture, logement…)</li>
+        </ul>
+        <p className="tip-h no">❌ À exclure</p>
+        <ul>
+          <li>Remboursements de frais professionnels</li>
+          <li>
+            Primes exceptionnelles <i>ponctuelles</i> (liées à un événement
+            unique)
+          </li>
+          <li>Participation et intéressement</li>
+          <li>Stock-options, actions gratuites</li>
+        </ul>
+        <p className="tip-note">
+          ⚖️ Une prime « exceptionnelle » mais versée <b>régulièrement</b> (même
+          d'un montant variable) doit être incluse : le critère est la{" "}
+          <b>récurrence</b> (Cass. soc. 15 janv. 2025, n° 23-11.600).
+        </p>
+      </>
+    ),
+  },
+  prorata: {
+    title: "Primes annuelles : la règle du prorata",
+    body: (
+      <>
+        <p>
+          Sur la méthode des <b>3 derniers mois</b>, une prime annuelle (ex. 13ᵉ
+          mois) ne compte <b>pas en entier</b> : on n'en retient que{" "}
+          <b>1/12 par mois</b> (soit 3/12 sur le trimestre).
+        </p>
+        <p>
+          Sinon, toucher le 13ᵉ mois pendant ces 3 mois gonflerait
+          artificiellement la moyenne.
+        </p>
+        <p className="tip-note">
+          👉 Dans la saisie mois par mois, indiquez la prime dans la colonne
+          « Prime » : le calcul la <b>proratise automatiquement</b> (art.
+          R.1234-4).
+        </p>
+      </>
+    ),
+  },
+  salaireRef: {
+    title: "12 mois ou 3 mois : lequel retenir ?",
+    body: (
+      <>
+        <p>
+          Le salaire de référence est la formule <b>la plus favorable</b> entre
+          la moyenne des <b>12 derniers mois</b> et le <b>tiers des 3 derniers
+          mois</b> (art. R.1234-4).
+        </p>
+        <p>
+          Le simulateur calcule les deux et retient automatiquement la plus
+          avantageuse — vous n'avez rien à choisir.
+        </p>
+        <p className="tip-note">
+          💡 Avec un salaire constant, les deux méthodes donnent le même
+          résultat.
+        </p>
+      </>
+    ),
+  },
+  anciennete: {
+    title: "Ancienneté : éligibilité ≠ montant",
+    body: (
+      <>
+        <p>Deux calculs distincts, souvent confondus :</p>
+        <p className="tip-h">⚖️ Pour le droit (seuil de 8 mois)</p>
+        <p>
+          Apprécié sur l'ancienneté <b>NON réduite</b> par les absences : une
+          suspension (maladie…) n'interrompt pas le contrat.
+        </p>
+        <p className="tip-h">💶 Pour le montant</p>
+        <p>
+          Certaines absences (maladie non professionnelle, congé sans solde,
+          sabbatique…) <b>réduisent</b> l'ancienneté qui sert au montant —{" "}
+          <b>sauf si votre convention les assimile</b>.
+        </p>
+        <p className="tip-note">
+          Maladie ou accident <b>professionnel</b> : toujours comptés. Réf. :
+          Cass. soc. 28 sept. 2022, n° 20-18.218 ·{" "}
+          <a href={SP} target="_blank" rel="noreferrer">
+            service-public.fr
+          </a>
+        </p>
+      </>
+    ),
+  },
+};
+
+function InfoTip({
+  topic,
+  openInfo,
+  label,
+}: {
+  topic: string;
+  openInfo: (t: string) => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className="info-tip"
+      onClick={() => openInfo(topic)}
+      aria-label={label ?? "Plus d'informations"}
+      title={label ?? "En savoir plus"}
+    >
+      i
+    </button>
+  );
+}
+
+function InfoDrawer({
+  topic,
+  onClose,
+}: {
+  topic: string | null;
+  onClose: () => void;
+}) {
+  const data = topic ? INFO_TOPICS[topic] : null;
+  return (
+    <div className={`drawer-root ${data ? "open" : ""}`} aria-hidden={!data}>
+      <div className="drawer-backdrop" onClick={onClose} />
+      <aside className="drawer" role="dialog" aria-modal="true">
+        {data && (
+          <>
+            <div className="drawer-head">
+              <h3>{data.title}</h3>
+              <button
+                type="button"
+                className="drawer-close"
+                onClick={onClose}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="drawer-body">{data.body}</div>
+          </>
+        )}
+      </aside>
+    </div>
+  );
+}
+
 export default function App() {
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<FormState>(initialForm);
   const [result, setResult] = useState<SimulationResult | null>(null);
+  const [infoTopic, setInfoTopic] = useState<string | null>(null);
+  const [expertMode, setExpertMode] = useState(false);
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -299,10 +470,22 @@ export default function App() {
               <StepDates form={form} set={set} seniority={seniorityYears} />
             )}
             {step === 4 && (
-              <StepAbsences form={form} set={set} seniority={seniorityYears} />
+              <StepAbsences
+                form={form}
+                set={set}
+                seniority={seniorityYears}
+                openInfo={setInfoTopic}
+                expertMode={expertMode}
+                setExpertMode={setExpertMode}
+              />
             )}
             {step === 5 && (
-              <StepSalaires form={form} set={set} monthLabels={monthLabels} />
+              <StepSalaires
+                form={form}
+                set={set}
+                monthLabels={monthLabels}
+                openInfo={setInfoTopic}
+              />
             )}
             {step === 6 && result && (
               <StepResult result={result} onRestart={restart} />
@@ -331,6 +514,8 @@ export default function App() {
           )}
         </section>
       </main>
+
+      <InfoDrawer topic={infoTopic} onClose={() => setInfoTopic(null)} />
     </div>
   );
 }
@@ -702,11 +887,27 @@ function StepAbsences({
   form,
   set,
   seniority,
+  openInfo,
+  expertMode,
+  setExpertMode,
 }: {
   form: FormState;
   set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   seniority?: number;
+  openInfo: (t: string) => void;
+  expertMode: boolean;
+  setExpertMode: (v: boolean) => void;
 }) {
+  // Ancienneté pour l'ÉLIGIBILITÉ : entrée → notification, NON réduite par les
+  // absences (continuité du contrat). Distincte de l'ancienneté du montant.
+  const eligibilitySeniority =
+    form.dateEntree && form.dateNotification
+      ? estimateSeniorityYears(
+          toFrDate(form.dateEntree),
+          toFrDate(form.dateNotification)
+        )
+      : undefined;
+
   const updateAbsence = (i: number, patch: Partial<AbsenceRow>) => {
     const next = form.absences.map((a, idx) =>
       idx === i ? { ...a, ...patch } : a
@@ -744,6 +945,11 @@ function StepAbsences({
       <p className="section-h">Période d'absence prolongée</p>
       <p className="q" style={{ fontSize: 16 }}>
         Y a-t-il eu des absences de plus d'un mois durant le contrat de travail ?
+        <InfoTip
+          topic="anciennete"
+          openInfo={openInfo}
+          label="Quelles absences sont déduites ?"
+        />
       </p>
       <YesNo
         value={form.absencesLongues}
@@ -808,6 +1014,59 @@ function StepAbsences({
           )}
         </div>
       )}
+
+      {/* Mode Expert — opt-in, n'affecte pas le parcours par défaut */}
+      <div className="expert-bar">
+        <div className="expert-label">
+          <span className="expert-ic">🔬</span>
+          <div>
+            <b>Mode Expert</b>
+            <span>Comprendre &amp; vérifier le calcul de l'ancienneté</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={expertMode}
+          className={`switch ${expertMode ? "on" : ""}`}
+          onClick={() => setExpertMode(!expertMode)}
+        >
+          <span className="knob" />
+        </button>
+      </div>
+
+      {expertMode && (
+        <div className="expert-panel">
+          <p className="expert-h">
+            Vos deux ancienneté
+            <InfoTip topic="anciennete" openInfo={openInfo} />
+          </p>
+          <div className="senio-split">
+            <div className="senio-box">
+              <span className="senio-tag">⚖️ Pour le droit (seuil 8 mois)</span>
+              <b>{formatSeniority(eligibilitySeniority) ?? "—"}</b>
+              <small>Absences NON déduites (continuité du contrat)</small>
+            </div>
+            <div className="senio-box">
+              <span className="senio-tag">💶 Pour le montant</span>
+              <b>{senioStr ?? "—"}</b>
+              <small>Absences déductibles déduites (sauf CCN plus favorable)</small>
+            </div>
+          </div>
+          <p className="expert-note">
+            Maladie ou accident <b>professionnel</b> : toujours comptés. Une{" "}
+            <b>convention collective</b> peut assimiler la maladie non
+            professionnelle.{" "}
+            <button
+              type="button"
+              className="hint-link"
+              onClick={() => openInfo("anciennete")}
+            >
+              En savoir plus
+            </button>
+          </p>
+        </div>
+      )}
     </>
   );
 }
@@ -816,16 +1075,19 @@ function StepSalaires({
   form,
   set,
   monthLabels,
+  openInfo,
 }: {
   form: FormState;
   set: <K extends keyof FormState>(k: K, v: FormState[K]) => void;
   monthLabels: string[];
+  openInfo: (t: string) => void;
 }) {
   return (
     <>
       <p className="q">
         Le salaire mensuel brut a-t-il été le même durant les 12 derniers mois
         précédant la notification ?
+        <InfoTip topic="salaireRef" openInfo={openInfo} label="12 ou 3 mois ?" />
       </p>
       <YesNo
         value={form.salaireConstant}
@@ -834,7 +1096,14 @@ function StepSalaires({
 
       {form.salaireConstant === true && (
         <div className="field" style={{ marginTop: 22 }}>
-          <label>Quel a été le montant du salaire mensuel brut ?</label>
+          <label>
+            Quel a été le montant du salaire mensuel brut ?
+            <InfoTip
+              topic="primes"
+              openInfo={openInfo}
+              label="Quelles primes inclure ?"
+            />
+          </label>
           <div className="input-wrap">
             <input
               type="number"
@@ -848,7 +1117,14 @@ function StepSalaires({
           </div>
           <p className="hint">
             <span>💡</span>
-            Prendre en compte les primes et avantages en nature.
+            Inclure les primes et avantages en nature.{" "}
+            <button
+              type="button"
+              className="hint-link"
+              onClick={() => openInfo("primes")}
+            >
+              Lesquels ?
+            </button>
           </p>
         </div>
       )}
@@ -857,8 +1133,12 @@ function StepSalaires({
         <div style={{ marginTop: 22 }}>
           <p className="q-sub">
             Saisissez le salaire brut de chacun des 12 derniers mois. La colonne
-            « prime » (facultative) sert aux primes/gratifications incluses dans
-            le mois.
+            « prime » sert aux primes annuelles incluses dans le mois.
+            <InfoTip
+              topic="prorata"
+              openInfo={openInfo}
+              label="Règle du prorata des primes"
+            />
           </p>
           <div className="sal-grid">
             {monthLabels.map((label, i) => (

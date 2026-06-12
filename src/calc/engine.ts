@@ -225,21 +225,28 @@ function correctSeniorityEligibility(
   out: any
 ): SimulationResult {
   const ineligibility: string | undefined = out.ineligibility;
-  const isSeniority =
-    typeof ineligibility === "string" && /8\s*mois/.test(ineligibility);
-  if (!isSeniority) {
-    return { status: "ineligible", ineligibility };
-  }
 
-  // Ancienneté requise SANS déduction des absences (continuité du contrat).
+  // Détection ROBUSTE, indépendante du libellé du moteur (pour ne pas casser lors
+  // d'une mise à jour officielle) : on ne corrige QUE le cas précis où la seule
+  // cause d'inéligibilité est la déduction des absences sur l'ancienneté requise,
+  // c.-à-d. éligible SANS les absences mais inéligible AVEC. Tout autre motif
+  // (ancienneté réellement insuffisante, ou futur motif du moteur) est respecté.
+  const eps = 1e-9;
   const grossRequired = estimateSeniorityYears(
     input.dateEntree,
     input.dateNotification
   );
-  const eligible =
-    input.inaptitudePro ||
-    (grossRequired !== undefined && grossRequired >= MIN_SENIORITY_YEARS - 1e-9);
-  if (!eligible) {
+  const reducedRequired = estimateSeniorityYears(
+    input.dateEntree,
+    input.dateNotification,
+    input.absencePeriods
+  );
+  const absenceDrivenSeniority =
+    grossRequired !== undefined &&
+    reducedRequired !== undefined &&
+    grossRequired >= MIN_SENIORITY_YEARS - eps &&
+    reducedRequired < MIN_SENIORITY_YEARS - eps;
+  if (!absenceDrivenSeniority) {
     return { status: "ineligible", ineligibility };
   }
 

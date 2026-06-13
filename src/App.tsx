@@ -768,19 +768,23 @@ function CcQuestionField({
       </div>
     );
   }
-  // montant
+  // montant / entier (âge…) / question (durée…) → champ numérique
+  const isInteger = q.type === "entier" || q.type === "question";
   return (
     <div className="field">
       <label>{q.question}</label>
       <div className="input-wrap">
         <input
           type="number"
-          inputMode="decimal"
+          inputMode={isInteger ? "numeric" : "decimal"}
+          step={isInteger ? 1 : "any"}
+          min={isInteger ? 0 : undefined}
           className="input"
+          placeholder={q.suffix === "ans" ? "Ex. 45" : undefined}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
-        <span className="suffix">€</span>
+        {q.suffix && <span className="suffix">{q.suffix}</span>}
       </div>
     </div>
   );

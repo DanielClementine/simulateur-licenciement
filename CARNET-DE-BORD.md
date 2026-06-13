@@ -208,6 +208,14 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 7) — Étape 1 : questions CCN âge/durée + HTML
+- Audit des 47 CCN : moteur OK 47/47 (avec âge renseigné). Découverte : ~28 CCN
+  ont une question d'**âge** (`entier`) rendue à tort avec « € ».
+- Fix : type `CcQuestionType` élargi (`entier`/`question`), **décodage HTML**
+  (`decodeHtml`) des libellés, **suffixe** correct (âge→« ans », durée→« mois »).
+  100 % affichage, **valeur transmise inchangée** → aucune régression (9/9 verts).
+- Validé UI : Télécommunications (IDCC 2148) → « …âge du salarié ? [Ex. 45] ans ».
+
 ### 2026-06-12 (suite 6) — EN LIGNE ✅
 - Dépôt poussé sur GitHub (DanielClementine/simulateur-licenciement, public).
 - 1er run échoué : `configure-pages` (Pages pas activé). Fix = **activer Pages

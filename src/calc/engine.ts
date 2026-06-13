@@ -40,7 +40,13 @@ function conventionValue(idcc?: string): string {
 const PK = "contrat salarié . indemnité de licenciement";
 
 /** Types d'entrée d'une question conventionnelle dynamique. */
-export type CcQuestionType = "oui-non" | "liste" | "montant" | "date";
+export type CcQuestionType =
+  | "oui-non"
+  | "liste"
+  | "montant"
+  | "entier"
+  | "question"
+  | "date";
 
 export interface CcQuestion {
   /** Nom de règle Publicodes (= clé d'argument). */
@@ -48,12 +54,47 @@ export interface CcQuestion {
   type: CcQuestionType;
   question: string;
   description?: string;
+  /** Suffixe d'unité à afficher dans le champ ("ans", "mois", "€" ou ""). */
+  suffix?: string;
   /** Pour les listes : libellé affiché -> valeur Publicodes (déjà quotée). */
   options?: { label: string; value: string }[];
 }
 
 /**
- * Questions spécifiques à une convention collective (catégorie pro, etc.),
+ * Décode les entités HTML (&nbsp; &rsquo; &eacute; …) et retire les balises.
+ * Les libellés du modèle officiel en contiennent. Sûr côté navigateur (textarea)
+ * avec repli minimal côté Node.
+ */
+function decodeHtml(input?: string): string {
+  if (!input) return "";
+  let s = input;
+  if (typeof document !== "undefined") {
+    const el = document.createElement("textarea");
+    el.innerHTML = s;
+    s = el.value;
+  } else {
+    s = s
+      .replace(/&nbsp;/g, " ")
+      .replace(/&rsquo;|&#39;/g, "'")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&[a-z]+;/gi, "");
+  }
+  return s.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+}
+
+/** Suffixe d'unité d'après le type et le libellé de la question. */
+function suffixFor(type: CcQuestionType, label: string): string {
+  if (type === "montant") return "€";
+  if (/[âa]ge/i.test(label)) return "ans";
+  if (/mois/i.test(label)) return "mois";
+  if (/ann[ée]e/i.test(label)) return "ans";
+  return "";
+}
+
+/**
+ * Questions spécifiques à une convention collective (catégorie pro, âge, etc.),
  * extraites du modèle officiel. À poser après sélection de la CC.
  */
 export function getAgreementQuestions(idcc?: string): CcQuestion[] {
@@ -64,15 +105,17 @@ export function getAgreementQuestions(idcc?: string): CcQuestion[] {
   Object.entries(rules).forEach(([name, rule]: [string, any]) => {
     if (rule && typeof rule === "object" && rule.cdtn && rule.cdtn.type) {
       const type = rule.cdtn.type as CcQuestionType;
+      const label = decodeHtml(rule.question ?? rule.titre ?? name);
       const q: CcQuestion = {
         name,
         type,
-        question: rule.question ?? rule.titre ?? name,
-        description: rule.description,
+        question: label,
+        description: decodeHtml(rule.description) || undefined,
+        suffix: suffixFor(type, label),
       };
       if (type === "liste" && rule.cdtn.valeurs) {
         q.options = Object.entries(rule.cdtn.valeurs).map(
-          ([label, value]) => ({ label, value: value as string })
+          ([lbl, value]) => ({ label: decodeHtml(lbl), value: value as string })
         );
       }
       out.push(q);

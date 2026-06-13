@@ -208,6 +208,20 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 10) — Étape 5 (v1) : moteur de template « conventions maison »
+- Nouvelle couche **additive** `src/calc/conventions-maison.ts` : template
+  déclaratif (paliers d'ancienneté, branches par catégorie, majoration d'âge,
+  plafond, seuil d'éligibilité) + interpréteur `computeConventionMaison`.
+- Intégration : recherche CC (badge violet « Maison »), questions dynamiques,
+  calcul (légal vs maison → plus favorable), détail comparatif. Le moteur
+  officiel et les 47 CC ne sont PAS touchés.
+- `getReferenceSalary` (Sref via le moteur officiel) pour alimenter le calcul.
+- Tests : suite `tests/maison.mts` (`npm test` lance officiel + maison),
+  validés 9/9 + 6/6. Validé UI bout-en-bout : convention démo Cadre 52 ans /
+  15 ans / 3000 € → **18 000 €** (vs légal 12 500 €), majoration d'âge affichée.
+- **Reste pour finaliser l'Étape 5** : le **formulaire visuel** d'ajout de CCN
+  (l'import choisi par l'utilisateur) — le moteur est prêt à le recevoir.
+
 ### 2026-06-12 (suite 9) — Étape 3 : modifier ses réponses depuis le résultat
 - Bouton « ← Modifier mes réponses » sur la page résultat (et écrans
   inéligible/erreur) → revient à l'étape Salaires, **toutes les saisies

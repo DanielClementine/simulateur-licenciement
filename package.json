@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node tests/regression.cjs"
+    "test": "node tests/regression.cjs && node --experimental-strip-types tests/maison.mts"
   },
   "dependencies": {
     "@socialgouv/modeles-social": "^4.231.1",

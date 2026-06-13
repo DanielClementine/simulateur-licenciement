@@ -11,6 +11,10 @@
 import * as ModelesSocial from "@socialgouv/modeles-social";
 import { applyOverlay } from "./overlay";
 import { formatSeniority } from "./dates";
+import {
+  getConventionMaison,
+  computeConventionMaison,
+} from "./conventions-maison";
 
 // Le paquet est en CommonJS : on récupère les exports de façon robuste.
 const IndemniteLicenciementPublicodes = (ModelesSocial as any)
@@ -151,6 +155,10 @@ export interface SimulationInput {
   salaryPeriods?: SalaryPeriod[]; // si salaire variable (12 mois)
   /** Réponses aux questions spécifiques à la CC (clé = nom de règle). */
   ccAnswers?: Record<string, string>;
+  /** Convention MAISON sélectionnée (couche overlay, hors moteur officiel). */
+  conventionMaisonId?: string;
+  /** Réponses aux questions de la convention maison (clé = key, ex. categorie). */
+  maisonAnswers?: Record<string, string>;
 }
 
 /** Sérialise les absences au format attendu par le moteur officiel. */
@@ -346,10 +354,107 @@ function correctSeniorityEligibility(
 }
 
 /**
+ * Salaire de référence (Sref) calculé par le moteur officiel, pour alimenter le
+ * calcul des conventions maison. Constant = salaire saisi ; variable = moyenne
+ * la plus favorable calculée par le module officiel.
+ */
+export function getReferenceSalary(input: SimulationInput): number | undefined {
+  try {
+    const pub = getInstance(undefined);
+    pub.calculate(
+      buildArgs({ ...input, idcc: undefined, ccAnswers: undefined })
+    );
+    const node = pub.engine.evaluate(`${PK} . salaire de référence`);
+    return typeof node?.nodeValue === "number" ? node.nodeValue : undefined;
+  } catch {
+    return input.salaireConstant ? input.salaireMensuel : undefined;
+  }
+}
+
+/**
+ * Calcul pour une convention MAISON : on calcule le légal (moteur officiel) ET
+ * la convention maison (interpréteur), puis on retient le plus favorable —
+ * exactement comme le moteur officiel le fait pour les CC officielles.
+ */
+function simulateMaison(input: SimulationInput): SimulationResult {
+  const cc = getConventionMaison(input.conventionMaisonId);
+  if (!cc) return { status: "error", message: "Convention maison introuvable" };
+
+  // 1) Calcul légal (sans convention) via le moteur officiel.
+  const legal = simulate({
+    ...input,
+    idcc: undefined,
+    conventionMaisonId: undefined,
+  });
+
+  // 2) Calcul conventionnel maison.
+  const ancienneteAnnees =
+    estimateSeniorityYears(
+      input.dateEntree,
+      input.dateSortie,
+      input.absencePeriods
+    ) ?? 0;
+  const sref = getReferenceSalary(input) ?? input.salaireMensuel ?? 0;
+  const ans = input.maisonAnswers ?? {};
+  const maison = computeConventionMaison(cc, {
+    ancienneteAnnees,
+    sref,
+    categorie: ans.categorie,
+    age: ans.age ? Number(ans.age) : undefined,
+  });
+
+  const legalMontant = legal.status === "result" ? legal.montant ?? 0 : undefined;
+  const maisonMontant = maison.eligible ? maison.montant : undefined;
+
+  // Ni l'un ni l'autre → on renvoie le verdict légal (inéligible/erreur).
+  if (legalMontant == null && maisonMontant == null) return legal;
+
+  const lv = legalMontant ?? 0;
+  const mv = maisonMontant ?? 0;
+  const maisonWins = mv > lv + 1e-9;
+  const same = Math.abs(mv - lv) <= 1e-9 && maisonMontant != null;
+  const chosenResult = maisonMontant == null
+    ? "LEGAL"
+    : legalMontant == null
+    ? "HAS_NO_LEGAL"
+    : maisonWins
+    ? "AGREEMENT"
+    : same
+    ? "SAME"
+    : "LEGAL";
+
+  const montant = Math.max(lv, mv);
+  const maisonFormule = {
+    formula: maison.formule,
+    explanations: maison.explications,
+  };
+
+  return {
+    status: "result",
+    montant,
+    unit: "€",
+    chosenResult,
+    legalMontant,
+    agreementMontant: maisonMontant,
+    formule: chosenResult === "AGREEMENT" || chosenResult === "HAS_NO_LEGAL"
+      ? maisonFormule
+      : legal.formule,
+    legalFormule: legal.formule,
+    references: cc.source ? [{ article: cc.source }] : legal.references,
+    eligibilityCorrected: legal.eligibilityCorrected,
+  };
+}
+
+/**
  * Calcule l'indemnité via le moteur officiel, puis applique l'overlay
  * (personnalisations maison) sur le résultat.
  */
 export function simulate(input: SimulationInput): SimulationResult {
+  // Chemin convention MAISON (couche overlay additive).
+  if (input.conventionMaisonId) {
+    return applyOverlay(input, simulateMaison(input));
+  }
+
   let raw: SimulationResult;
   try {
     const pub = getInstance(input.idcc);

@@ -427,6 +427,11 @@ select.input {
   border-radius: 999px;
   white-space: nowrap;
 }
+.cc-badge.maison {
+  color: var(--violet-600);
+  background: #f5f3ff;
+  border-color: #ede9fe;
+}
 .cc-selected {
   display: flex;
   align-items: center;

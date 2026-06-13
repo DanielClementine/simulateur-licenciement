@@ -21,11 +21,22 @@ import {
   twelveMonthsBefore,
 } from "./calc/dates";
 import { MOTIFS_ABSENCE_LEGAL } from "./calc/motifs";
-import { searchConventions } from "./calc/conventions";
+import { searchConventions, normalize } from "./calc/conventions";
+import {
+  CONVENTIONS_MAISON,
+  getConventionMaison,
+} from "./calc/conventions-maison";
 
 interface AbsenceRow {
   motifKey: string;
   durationInMonth: string;
+}
+
+interface CcSearchItem {
+  idcc?: string;
+  maisonId?: string;
+  shortTitle: string;
+  key: string;
 }
 
 const STEPS = [
@@ -43,6 +54,7 @@ type CcChoice = "saisir" | "rechercher" | "passer";
 interface FormState {
   ccChoice: CcChoice | null;
   idcc: string | null;
+  maisonId: string | null;
   ccLabel: string | null;
   ccSearch: string;
   ccAnswers: Record<string, string>;
@@ -62,6 +74,7 @@ interface FormState {
 const initialForm: FormState = {
   ccChoice: null,
   idcc: null,
+  maisonId: null,
   ccLabel: null,
   ccSearch: "",
   ccAnswers: {},
@@ -319,11 +332,27 @@ export default function App() {
     [form.dateNotification]
   );
 
-  // Questions spécifiques à la convention collective sélectionnée.
-  const ccQuestions = useMemo<CcQuestion[]>(
-    () => getAgreementQuestions(form.idcc ?? undefined),
-    [form.idcc]
-  );
+  // Questions spécifiques à la convention sélectionnée (officielle ou maison).
+  const ccQuestions = useMemo<CcQuestion[]>(() => {
+    if (form.maisonId) {
+      const cc = getConventionMaison(form.maisonId);
+      return (cc?.questions ?? []).map((q) => ({
+        name: q.key,
+        type: q.type as CcQuestion["type"],
+        question: q.label,
+        suffix:
+          q.type === "montant"
+            ? "€"
+            : /[âa]ge/i.test(q.label)
+            ? "ans"
+            : q.type === "entier"
+            ? ""
+            : "",
+        options: q.options?.map((o) => ({ label: o, value: o })),
+      }));
+    }
+    return getAgreementQuestions(form.idcc ?? undefined);
+  }, [form.idcc, form.maisonId]);
 
   const canNext = (() => {
     switch (step) {
@@ -332,8 +361,8 @@ export default function App() {
       case 1:
         if (form.ccChoice === null) return false;
         if (form.ccChoice === "passer") return true;
-        // Saisir/rechercher : CC choisie + toutes ses questions répondues.
-        if (!form.idcc) return false;
+        // Saisir/rechercher : CC choisie (officielle ou maison) + questions OK.
+        if (!form.idcc && !form.maisonId) return false;
         return ccQuestions.every((q) => !!form.ccAnswers[q.name]);
       case 2:
         return form.inaptitudePro !== null;
@@ -359,10 +388,14 @@ export default function App() {
   })();
 
   function runSimulation() {
-    const useCc = form.ccChoice !== "passer" && !!form.idcc;
+    const useCc = form.ccChoice !== "passer";
+    const useOfficial = useCc && !!form.idcc;
+    const useMaison = useCc && !!form.maisonId;
     const input: SimulationInput = {
-      idcc: useCc ? form.idcc! : undefined,
-      ccAnswers: useCc ? form.ccAnswers : undefined,
+      idcc: useOfficial ? form.idcc! : undefined,
+      ccAnswers: useOfficial ? form.ccAnswers : undefined,
+      conventionMaisonId: useMaison ? form.maisonId! : undefined,
+      maisonAnswers: useMaison ? form.ccAnswers : undefined,
       dateEntree: toFrDate(form.dateEntree),
       dateNotification: toFrDate(form.dateNotification),
       dateSortie: toFrDate(form.dateSortie),
@@ -570,25 +603,46 @@ function StepCc({
   ccQuestions: CcQuestion[];
 }) {
   const value = form.ccChoice;
-  const results = useMemo(
-    () => (form.ccSearch.trim() ? searchConventions(form.ccSearch).slice(0, 8) : []),
-    [form.ccSearch]
-  );
+  const results = useMemo(() => {
+    const q = form.ccSearch.trim();
+    if (!q) return [] as CcSearchItem[];
+    const nq = normalize(q);
+    const maison: CcSearchItem[] = CONVENTIONS_MAISON.filter(
+      (c) => normalize(c.nom).includes(nq) || (c.idcc && c.idcc.includes(q))
+    ).map((c) => ({ maisonId: c.id, shortTitle: c.nom, key: "m-" + c.id }));
+    const officiel: CcSearchItem[] = searchConventions(q)
+      .slice(0, 8)
+      .map((c) => ({ idcc: c.idcc, shortTitle: c.shortTitle, key: "o-" + c.idcc }));
+    return [...maison, ...officiel];
+  }, [form.ccSearch]);
 
   const chooseChoice = (v: CcChoice) => {
     set("ccChoice", v);
     if (v === "passer") {
       set("idcc", null);
+      set("maisonId", null);
       set("ccLabel", null);
       set("ccAnswers", {});
     }
   };
 
-  const selectCc = (idcc: string, label: string) => {
-    set("idcc", idcc);
-    set("ccLabel", label);
+  const selectCc = (opts: {
+    idcc?: string;
+    maisonId?: string;
+    label: string;
+  }) => {
+    set("idcc", opts.idcc ?? null);
+    set("maisonId", opts.maisonId ?? null);
+    set("ccLabel", opts.label);
     set("ccAnswers", {});
     set("ccSearch", "");
+  };
+
+  const clearCc = () => {
+    set("idcc", null);
+    set("maisonId", null);
+    set("ccLabel", null);
+    set("ccAnswers", {});
   };
 
   return (
@@ -624,21 +678,15 @@ function StepCc({
 
       {(value === "saisir" || value === "rechercher") && (
         <div style={{ marginTop: 18 }}>
-          {form.idcc && form.ccLabel ? (
+          {(form.idcc || form.maisonId) && form.ccLabel ? (
             <div className="cc-selected">
               <div>
-                <span className="cc-badge">IDCC {form.idcc}</span>
+                <span className={`cc-badge ${form.maisonId ? "maison" : ""}`}>
+                  {form.idcc ? `IDCC ${form.idcc}` : "Maison"}
+                </span>
                 <b>{form.ccLabel}</b>
               </div>
-              <button
-                type="button"
-                className="cc-change"
-                onClick={() => {
-                  set("idcc", null);
-                  set("ccLabel", null);
-                  set("ccAnswers", {});
-                }}
-              >
+              <button type="button" className="cc-change" onClick={clearCc}>
                 Changer
               </button>
             </div>
@@ -657,12 +705,20 @@ function StepCc({
               {results.length > 0 && (
                 <ul className="cc-list">
                   {results.map((c) => (
-                    <li key={c.idcc}>
+                    <li key={c.key}>
                       <button
                         type="button"
-                        onClick={() => selectCc(c.idcc, c.shortTitle)}
+                        onClick={() =>
+                          selectCc({
+                            idcc: c.idcc,
+                            maisonId: c.maisonId,
+                            label: c.shortTitle,
+                          })
+                        }
                       >
-                        <span className="cc-badge">IDCC {c.idcc}</span>
+                        <span className={`cc-badge ${c.maisonId ? "maison" : ""}`}>
+                          {c.idcc ? `IDCC ${c.idcc}` : "Maison"}
+                        </span>
                         <span>{c.shortTitle}</span>
                       </button>
                     </li>
@@ -681,7 +737,7 @@ function StepCc({
           )}
 
           {/* Questions spécifiques à la convention sélectionnée */}
-          {form.idcc && ccQuestions.length > 0 && (
+          {(form.idcc || form.maisonId) && ccQuestions.length > 0 && (
             <div style={{ marginTop: 22 }}>
               <p className="section-h" style={{ marginTop: 0 }}>
                 Précisions sur votre convention
@@ -1300,6 +1356,8 @@ function StepResult({
       k: "Convention collective",
       v: form.idcc
         ? `${form.ccLabel} (IDCC ${form.idcc})`
+        : form.maisonId
+        ? `${form.ccLabel} (maison)`
         : "Non renseignée (Code du travail)",
     },
     { k: "Date d'entrée", v: toFrDate(form.dateEntree) },
@@ -1394,7 +1452,9 @@ function StepResult({
                   )}
                 </div>
                 <div className={`cmp-card ${ccWins ? "win" : ""}`}>
-                  <span className="cmp-h">Convention (IDCC {form.idcc})</span>
+                  <span className="cmp-h">
+                    Convention {form.idcc ? `(IDCC ${form.idcc})` : "(maison)"}
+                  </span>
                   <b>{formatEuros(result.agreementMontant ?? 0)}</b>
                   {ccWins && formule?.formula && (
                     <code className="cmp-f">{formule.formula}</code>

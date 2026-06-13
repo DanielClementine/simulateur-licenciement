@@ -180,6 +180,8 @@ export interface SimulationResult {
   legalMontant?: number;
   agreementMontant?: number;
   formule?: any;
+  /** Formule LÉGALE (Code du travail), pour le détail comparatif. */
+  legalFormule?: any;
   references?: any[];
   notifications?: any[];
   missing?: string[];
@@ -355,6 +357,16 @@ export function simulate(input: SimulationInput): SimulationResult {
 
     if (out.type === "result") {
       const num = (v: any) => (typeof v === "number" ? v : undefined);
+      // Pour le détail comparatif, on récupère aussi la formule LÉGALE.
+      // Si une CC est retenue, la formule légale n'est pas dans `out.formula` →
+      // on relance un calcul légal-only (même moteur, montant = legalResult).
+      let legalFormule = out.formula;
+      if (input.idcc) {
+        const legalOut = getInstance(undefined).calculate(
+          buildArgs({ ...input, idcc: undefined, ccAnswers: undefined })
+        );
+        if (legalOut.type === "result") legalFormule = legalOut.formula;
+      }
       raw = {
         status: "result",
         montant: num(out.result.value),
@@ -363,6 +375,7 @@ export function simulate(input: SimulationInput): SimulationResult {
         legalMontant: num(out.detail?.legalResult?.value),
         agreementMontant: num(out.detail?.agreementResult?.value),
         formule: out.formula,
+        legalFormule,
         references: out.references,
         notifications: out.notifications,
       };

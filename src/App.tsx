@@ -488,7 +488,7 @@ export default function App() {
               />
             )}
             {step === 6 && result && (
-              <StepResult result={result} onRestart={restart} />
+              <StepResult result={result} onRestart={restart} form={form} />
             )}
           </div>
 
@@ -1201,9 +1201,11 @@ function StepSalaires({
 function StepResult({
   result,
   onRestart,
+  form,
 }: {
   result: SimulationResult;
   onRestart: () => void;
+  form: FormState;
 }) {
   const montant = result.montant ?? 0;
   const animated = useCountUp(montant, result.status === "result");
@@ -1257,11 +1259,73 @@ function StepResult({
   const formule = result.formule as
     | { formula?: string; explanations?: string[] }
     | undefined;
+  const legalFormule = result.legalFormule as
+    | { formula?: string; explanations?: string[] }
+    | undefined;
+  const refs = (result.references ?? []) as { article?: string; url?: string }[];
+  const hasCC = result.agreementMontant != null;
+  const chosen = result.chosenResult;
+  const ccWins = chosen === "AGREEMENT" || chosen === "HAS_NO_LEGAL";
+  const retainedLabel = ccWins
+    ? "Convention collective"
+    : chosen === "SAME"
+    ? "Identique (Code du travail / convention)"
+    : "Code du travail";
+
+  // Récapitulatif des éléments saisis (pour la traçabilité).
+  const saisies: { k: string; v: string }[] = [
+    { k: "Type de contrat", v: "CDI à temps plein" },
+    {
+      k: "Inaptitude professionnelle",
+      v: form.inaptitudePro ? "Oui (indemnité doublée)" : "Non",
+    },
+    {
+      k: "Convention collective",
+      v: form.idcc
+        ? `${form.ccLabel} (IDCC ${form.idcc})`
+        : "Non renseignée (Code du travail)",
+    },
+    { k: "Date d'entrée", v: toFrDate(form.dateEntree) },
+    { k: "Date de notification", v: toFrDate(form.dateNotification) },
+    { k: "Date de fin de contrat", v: toFrDate(form.dateSortie) },
+    {
+      k: "Arrêt au moment du licenciement",
+      v: form.arretTravail ? "Oui" : "Non",
+    },
+    {
+      k: "Absences prolongées déduites",
+      v:
+        form.absencesLongues && form.absences.some((a) => a.motifKey)
+          ? form.absences
+              .filter((a) => a.motifKey)
+              .map((a) => {
+                const m = MOTIFS_ABSENCE_LEGAL.find((x) => x.key === a.motifKey);
+                return `${m?.label ?? a.motifKey} : ${a.durationInMonth} mois`;
+              })
+              .join(" · ")
+          : "Aucune",
+    },
+    {
+      k: "Salaire de référence",
+      v: form.salaireConstant
+        ? `${formatEuros(Number(form.salaireMensuel))} brut / mois (constant)`
+        : "Variable (12 derniers mois saisis)",
+    },
+  ];
+
+  const today = new Date().toLocaleDateString("fr-FR");
 
   return (
     <>
+      <div className="print-only print-header">
+        <b>Estimation d'indemnité de licenciement</b>
+        <span>CDI temps plein · Édité le {today}</span>
+      </div>
+
       <div className="result-top">
-        <div className="result-emoji">🎉</div>
+        <div className="result-emoji" aria-hidden>
+          🎉
+        </div>
         <p className="result-label">
           Votre indemnité de licenciement est estimée à
         </p>
@@ -1279,61 +1343,114 @@ function StepResult({
             <b>Éligibilité rétablie.</b> Vos absences réduisent le{" "}
             <i>montant</i> de l'indemnité, mais pas votre <i>droit</i> à
             l'indemnité : le seuil de 8 mois s'apprécie sur l'ancienneté non
-            réduite (continuité du contrat). Le simulateur officiel vous
-            déclarerait inéligible à tort.
+            réduite (continuité du contrat).
           </span>
         </div>
       )}
 
-      <div className="callout info">
-        <span className="ic">ℹ️</span>
-        <span>
-          Il peut exister un montant plus favorable prévu par une convention
-          collective, un accord d'entreprise ou votre contrat de travail.
-        </span>
-      </div>
+      {!hasCC && (
+        <div className="callout info no-print">
+          <span className="ic">ℹ️</span>
+          <span>
+            Il peut exister un montant plus favorable prévu par une convention
+            collective, un accord d'entreprise ou votre contrat de travail.
+          </span>
+        </div>
+      )}
 
       <details className="detail" open>
         <summary>
           <span>Détail du calcul</span>
-          <span>▾</span>
+          <span className="chev">▾</span>
         </summary>
         <div className="detail-body">
-          {formule?.formula && <div className="formula">{formule.formula}</div>}
-          {formule?.explanations?.map((ex) => (
-            <div className="kv" key={ex}>
-              <span>{ex}</span>
+          {/* Comparatif légal vs conventionnel */}
+          {hasCC ? (
+            <div className="detail-section">
+              <h4>Comparatif</h4>
+              <div className="cmp">
+                <div className={`cmp-card ${!ccWins ? "win" : ""}`}>
+                  <span className="cmp-h">Code du travail</span>
+                  <b>{formatEuros(result.legalMontant ?? 0)}</b>
+                  {legalFormule?.formula && (
+                    <code className="cmp-f">{legalFormule.formula}</code>
+                  )}
+                </div>
+                <div className={`cmp-card ${ccWins ? "win" : ""}`}>
+                  <span className="cmp-h">Convention (IDCC {form.idcc})</span>
+                  <b>{formatEuros(result.agreementMontant ?? 0)}</b>
+                  {ccWins && formule?.formula && (
+                    <code className="cmp-f">{formule.formula}</code>
+                  )}
+                </div>
+              </div>
+              <div className="cmp-verdict">
+                <span className="ic">✓</span> Montant retenu :{" "}
+                <b>{retainedLabel}</b>
+                {chosen !== "SAME" && " (le plus favorable)"}
+              </div>
             </div>
-          ))}
-          <div className="kv">
-            <span>Montant prévu par le Code du travail</span>
-            <b>{formatEuros(result.legalMontant ?? montant)}</b>
+          ) : null}
+
+          {/* Formule appliquée */}
+          <div className="detail-section">
+            <h4>Formule appliquée{hasCC ? ` — ${retainedLabel}` : ""}</h4>
+            {formule?.formula && <div className="formula">{formule.formula}</div>}
+            {formule?.explanations?.map((ex) => (
+              <div className="kv" key={ex}>
+                <span>{ex}</span>
+              </div>
+            ))}
           </div>
-          <div className="kv">
-            <span>Montant prévu par la convention collective</span>
-            <b>
-              {result.agreementMontant != null
-                ? formatEuros(result.agreementMontant)
-                : "Non renseignée"}
-            </b>
+
+          {/* Éléments saisis */}
+          <div className="detail-section">
+            <h4>Éléments saisis</h4>
+            <div className="saisies">
+              {saisies.map((s) => (
+                <div className="kv" key={s.k}>
+                  <span>{s.k}</span>
+                  <b>{s.v}</b>
+                </div>
+              ))}
+            </div>
           </div>
-          {result.chosenResult && result.agreementMontant != null && (
-            <div className="kv">
-              <span>Montant retenu (le plus favorable)</span>
-              <b>
-                {result.chosenResult === "AGREEMENT"
-                  ? "Convention collective"
-                  : result.chosenResult === "SAME"
-                  ? "Identique"
-                  : "Code du travail"}
-              </b>
+
+          {/* Références juridiques */}
+          {refs.length > 0 && (
+            <div className="detail-section">
+              <h4>Références</h4>
+              <ul className="refs">
+                {refs.map((r, i) => (
+                  <li key={i}>
+                    {r.url ? (
+                      <a href={r.url} target="_blank" rel="noreferrer">
+                        {r.article ?? r.url}
+                      </a>
+                    ) : (
+                      r.article
+                    )}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
         </div>
       </details>
 
-      <div className="restart">
-        <button onClick={onRestart}>↺ Recommencer la simulation</button>
+      <p className="print-only print-foot">
+        Estimation indicative fondée sur le moteur officiel du Code du travail
+        numérique. Une convention collective ou un accord peut prévoir un montant
+        plus favorable.
+      </p>
+
+      <div className="result-actions no-print">
+        <button className="btn-print" onClick={() => window.print()}>
+          🖨️ Imprimer / PDF
+        </button>
+        <button className="btn-restart" onClick={onRestart}>
+          ↺ Recommencer
+        </button>
       </div>
     </>
   );

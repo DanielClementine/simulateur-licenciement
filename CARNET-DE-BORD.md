@@ -208,6 +208,16 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 8) — Étape 2 : détail complet + impression PDF
+- Détail du résultat refondu : **comparatif** légal vs conventionnel (les DEUX
+  montants ET les deux formules), **formule appliquée**, **éléments saisis**
+  (récap complet), **références** juridiques cliquables.
+- Moteur : nouveau champ `legalFormule` (2ᵉ appel légal-only pour avoir la
+  formule légale même quand la CC l'emporte).
+- **Impression/PDF** : bouton `window.print()` + feuille de style `@media print`
+  (en-tête + pied de page, masque nav/fond/boutons). Affichage seul.
+- 9/9 verts → aucune régression. Validé UI : SYNTEC → 12 500 € vs 15 000 €.
+
 ### 2026-06-12 (suite 7) — Étape 1 : questions CCN âge/durée + HTML
 - Audit des 47 CCN : moteur OK 47/47 (avec âge renseigné). Découverte : ~28 CCN
   ont une question d'**âge** (`entier`) rendue à tort avec « € ».

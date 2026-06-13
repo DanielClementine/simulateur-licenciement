@@ -4,7 +4,11 @@
 > On y consigne : ce qu'on fait, pourquoi, comment, ce qui reste, les
 > précautions et les limites. **Mise à jour à chaque étape importante.**
 >
-> Dernière mise à jour : **2026-06-12** (légal + conventions collectives)
+> Dernière mise à jour : **2026-06-12** (EN LIGNE)
+>
+> 🌐 **En ligne : https://danielclementine.github.io/simulateur-licenciement/**
+> 📦 Dépôt : https://github.com/DanielClementine/simulateur-licenciement
+> 🔄 MAJ auto : chaque lundi 06:00 UTC (workflow `update.yml`)
 
 ---
 
@@ -203,6 +207,15 @@ jurisprudence). Base de l'enrichissement pédagogique.
 - **À venir (enrichissement, validé)** : bulles « ⓘ » pédagogiques sur les primes
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
+
+### 2026-06-12 (suite 6) — EN LIGNE ✅
+- Dépôt poussé sur GitHub (DanielClementine/simulateur-licenciement, public).
+- 1er run échoué : `configure-pages` (Pages pas activé). Fix = **activer Pages
+  manuellement** (Settings → Pages → Source = « GitHub Actions »). À retenir :
+  `enablement: true` ne suffit pas toujours sur un dépôt neuf.
+- Re-déclenché (commit vide) → **succès**. Site vérifié : HTML/JS/CSS = 200.
+- 🌐 **https://danielclementine.github.io/simulateur-licenciement/**
+- MAJ auto hebdo (`update.yml`) désormais active sur le dépôt.
 
 ### 2026-06-12 (suite 5) — Préparation mise en ligne (GitHub Pages)
 - Choix hébergement validé : **GitHub Pages + GitHub Actions** (gratuit, robuste).

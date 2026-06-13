@@ -1012,7 +1012,8 @@ select.input {
   flex-wrap: wrap;
 }
 .btn-print,
-.btn-restart {
+.btn-restart,
+.btn-edit {
   border-radius: 13px;
   padding: 13px 24px;
   font-weight: 700;
@@ -1020,6 +1021,15 @@ select.input {
   cursor: pointer;
   border: none;
   transition: all 0.16s ease;
+}
+.btn-edit {
+  background: var(--indigo-50);
+  color: var(--indigo-600);
+  border: 1.5px solid var(--indigo-100);
+}
+.btn-edit:hover {
+  background: var(--indigo-100);
+  border-color: var(--indigo-500);
 }
 .btn-print {
   background: var(--grad-brand);

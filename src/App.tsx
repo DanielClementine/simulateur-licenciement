@@ -488,7 +488,12 @@ export default function App() {
               />
             )}
             {step === 6 && result && (
-              <StepResult result={result} onRestart={restart} form={form} />
+              <StepResult
+                result={result}
+                onRestart={restart}
+                onEdit={() => setStep(5)}
+                form={form}
+              />
             )}
           </div>
 
@@ -1201,10 +1206,12 @@ function StepSalaires({
 function StepResult({
   result,
   onRestart,
+  onEdit,
   form,
 }: {
   result: SimulationResult;
   onRestart: () => void;
+  onEdit: () => void;
   form: FormState;
 }) {
   const montant = result.montant ?? 0;
@@ -1234,8 +1241,13 @@ function StepResult({
             plus favorables. Vérifiez votre situation auprès d'un conseiller.
           </span>
         </div>
-        <div className="restart">
-          <button onClick={onRestart}>↺ Recommencer la simulation</button>
+        <div className="result-actions">
+          <button className="btn-edit" onClick={onEdit}>
+            ← Modifier mes réponses
+          </button>
+          <button className="btn-restart" onClick={onRestart}>
+            ↺ Recommencer
+          </button>
         </div>
       </>
     );
@@ -1249,8 +1261,13 @@ function StepResult({
             ? `Il manque des informations : ${result.missing?.join(", ")}`
             : `Une erreur est survenue : ${result.message ?? "inconnue"}`}
         </div>
-        <div className="restart">
-          <button onClick={onRestart}>↺ Recommencer la simulation</button>
+        <div className="result-actions">
+          <button className="btn-edit" onClick={onEdit}>
+            ← Modifier mes réponses
+          </button>
+          <button className="btn-restart" onClick={onRestart}>
+            ↺ Recommencer
+          </button>
         </div>
       </>
     );
@@ -1445,6 +1462,9 @@ function StepResult({
       </p>
 
       <div className="result-actions no-print">
+        <button className="btn-edit" onClick={onEdit}>
+          ← Modifier mes réponses
+        </button>
         <button className="btn-print" onClick={() => window.print()}>
           🖨️ Imprimer / PDF
         </button>

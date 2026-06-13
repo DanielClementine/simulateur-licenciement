@@ -208,6 +208,14 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 9) — Étape 3 : modifier ses réponses depuis le résultat
+- Bouton « ← Modifier mes réponses » sur la page résultat (et écrans
+  inéligible/erreur) → revient à l'étape Salaires, **toutes les saisies
+  préservées** (état React jamais effacé). Recalcul au moment de re-valider.
+- Validé UI : retour résultat → salaire 3000 €, absences Non, Mode Expert OFF
+  tous intacts. Navigation arrière existante (étapes 1→5) non cassée.
+- Affichage/navigation seulement → 9/9 verts, aucune régression.
+
 ### 2026-06-12 (suite 8) — Étape 2 : détail complet + impression PDF
 - Détail du résultat refondu : **comparatif** légal vs conventionnel (les DEUX
   montants ET les deux formules), **formule appliquée**, **éléments saisis**

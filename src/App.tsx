@@ -1259,6 +1259,24 @@ function StepSalaires({
   );
 }
 
+/**
+ * Libellés en clair des articles du Code du travail qui PILOTENT le calcul.
+ * Volontairement limité aux articles vérifiés/structurants (pas d'à-peu-près sur
+ * un outil juridique). Les autres articles restent affichés tels quels.
+ */
+const ARTICLE_LABELS: Record<string, string> = {
+  "L1234-9": "Droit à l'indemnité légale de licenciement",
+  "R1234-1": "Condition d'ancienneté (minimum 8 mois)",
+  "R1234-2": "Taux : ¼ de mois par an (⅓ au-delà de 10 ans)",
+  "R1234-4": "Salaire de référence (moyenne 12 ou 3 mois, le plus favorable)",
+};
+
+/** Extrait le code d'article : "Article L1234-9" -> "L1234-9". */
+function articleCode(s: string): string {
+  const m = s.match(/[LRD]\.?\s?\d{3,4}-\d+/i);
+  return m ? m[0].replace(/[\s.]/g, "").toUpperCase() : "";
+}
+
 function StepResult({
   result,
   onRestart,
@@ -1272,6 +1290,7 @@ function StepResult({
 }) {
   const montant = result.montant ?? 0;
   const animated = useCountUp(montant, result.status === "result");
+  const [showRefs, setShowRefs] = useState(false);
 
   if (result.status === "ineligible") {
     // Le moteur renvoie un message HTML — on le nettoie pour l'afficher.
@@ -1493,22 +1512,42 @@ function StepResult({
             </div>
           </div>
 
-          {/* Références juridiques */}
+          {/* Textes de référence — libellés en clair, repliable */}
           {refs.length > 0 && (
             <div className="detail-section">
-              <h4>Références</h4>
-              <ul className="refs">
-                {refs.map((r, i) => (
-                  <li key={i}>
-                    {r.url ? (
-                      <a href={r.url} target="_blank" rel="noreferrer">
-                        {r.article ?? r.url}
-                      </a>
-                    ) : (
-                      r.article
-                    )}
-                  </li>
-                ))}
+              <button
+                type="button"
+                className="refs-toggle no-print"
+                onClick={() => setShowRefs((v) => !v)}
+                aria-expanded={showRefs}
+              >
+                <span>📖 Textes de référence ({refs.length})</span>
+                <span className="chev">{showRefs ? "⌃" : "⌄"}</span>
+              </button>
+              <h4 className="print-only">Textes de référence</h4>
+              <ul className={`refs ${showRefs ? "" : "refs-collapsed"}`}>
+                {refs.map((r, i) => {
+                  const code = r.article ? articleCode(r.article) : "";
+                  const label = ARTICLE_LABELS[code];
+                  const art = label ? `art. ${code}` : r.article;
+                  return (
+                    <li key={i}>
+                      {label && <span className="ref-label">{label}</span>}
+                      {r.url ? (
+                        <a
+                          className="ref-art"
+                          href={r.url}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {art}
+                        </a>
+                      ) : (
+                        <span className="ref-art">{art}</span>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           )}

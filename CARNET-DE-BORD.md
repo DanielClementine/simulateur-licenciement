@@ -208,6 +208,13 @@ jurisprudence). Base de l'enrichissement pédagogique.
   (prorata, inclure/exclure) + **Mode Expert** (interrupteur OFF par défaut) pour
   ajuster/expliquer l'ancienneté. Soin UI/UX prioritaire.
 
+### 2026-06-12 (suite 11) — Références « parlantes » sur la page résultat
+- Les articles bruts ne parlaient pas au user. Bloc « Textes de référence »
+  désormais **repliable** (épuré par défaut, déplié à l'impression) avec des
+  **libellés en clair** sur les 4 articles qui pilotent le calcul (L1234-9,
+  R1234-1, R1234-2, R1234-4 — `ARTICLE_LABELS`). Les autres restent en lien brut
+  (pas d'à-peu-près juridique). Affichage seul → 9/9 + 6/6, aucune régression.
+
 ### 2026-06-12 (suite 10) — Étape 5 (v1) : moteur de template « conventions maison »
 - Nouvelle couche **additive** `src/calc/conventions-maison.ts` : template
   déclaratif (paliers d'ancienneté, branches par catégorie, majoration d'âge,
